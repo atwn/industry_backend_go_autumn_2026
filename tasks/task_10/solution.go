@@ -111,29 +111,76 @@ func (r *inMemoryTaskRepo) SetDone(id string, done bool) (Task, error) {
 	return task, nil
 }
 
-type httpHandler struct{ repo TaskRepo }
+type httpHandler struct {
+	mux  *http.ServeMux
+	repo TaskRepo
+}
 
 func NewHTTPHandler(repo TaskRepo) http.Handler {
-	panic("TODO: implement")
+	mux := http.NewServeMux()
+	h := httpHandler{mux: mux, repo: repo}
+
+	mux.HandleFunc("POST /tasks", h.handleCreate)
+	mux.HandleFunc("GET /tasks/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		h.handleGet(w, r, id)
+	})
+	mux.HandleFunc("GET /tasks", func(w http.ResponseWriter, r *http.Request) {
+		query := r.URL.Query()
+		values, ok := query["done"]
+		if ok && len(values) == 1 && (values[0] == "true" || values[0] == "false") { // ?done=true или ?done=false
+			h.handleList(w, r)
+			return
+		}
+
+		if !ok { // параметр 'done' не задан, обрабатывать как ?done=false
+			//query.Set("done", "false")
+			//r.URL.RawQuery = query.Encode()
+			h.handleList(w, r)
+			return
+		}
+
+		http.Error(w, "'done' must be 'true' or 'false' when set", http.StatusBadRequest) // 'done' задан неверно
+	})
+	mux.HandleFunc("PATCH /tasks/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		h.handlePatch(w, r, id)
+	})
+	// явно прописать обработчик для HEAD метода чтобы вернуть 405, а не обрабатывать его как GET
+	// (см. https://pkg.go.dev/net/http#ServeMux, подсказал AI - сам бы не догадался)
+	mux.HandleFunc("HEAD /tasks", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	})
+	mux.HandleFunc("HEAD /tasks/{id}", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	})
+	return &h
 }
+
 func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	panic("TODO: implement")
+	h.mux.ServeHTTP(w, r)
 }
+
 func (h *httpHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 	panic("TODO: implement")
 }
+
 func (h *httpHandler) handleGet(w http.ResponseWriter, r *http.Request, id string) {
 	panic("TODO: implement")
 }
+
 func (h *httpHandler) handleList(w http.ResponseWriter, r *http.Request) {
 	panic("TODO: implement")
 }
+
 func (h *httpHandler) handlePatch(w http.ResponseWriter, r *http.Request, id string) {
 	panic("TODO: implement")
 }
+
 func decodeStrictJSON(r io.Reader, v any) error {
 	panic("TODO: implement")
 }
+
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	panic("TODO: implement")
 }
