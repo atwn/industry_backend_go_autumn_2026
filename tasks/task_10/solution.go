@@ -1,12 +1,10 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -104,167 +102,26 @@ func (r *inMemoryTaskRepo) SetDone(id string, done bool) (Task, error) {
 type httpHandler struct{ repo TaskRepo }
 
 func NewHTTPHandler(repo TaskRepo) http.Handler {
-	return &httpHandler{repo: repo}
+	panic("TODO: implement")
 }
 func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
-
-	if path == "/tasks" {
-		switch r.Method {
-		case http.MethodPost:
-			h.handleCreate(w, r)
-		case http.MethodGet:
-			h.handleList(w, r)
-		default:
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		}
-		return
-	}
-
-	if !strings.HasPrefix(path, "/tasks/") {
-		http.NotFound(w, r)
-		return
-	}
-
-	id := strings.TrimPrefix(path, "/tasks/")
-	if id == "" || strings.Contains(id, "/") {
-		http.NotFound(w, r)
-		return
-	}
-
-	switch r.Method {
-	case http.MethodGet:
-		h.handleGet(w, r, id)
-	case http.MethodPatch:
-		h.handlePatch(w, r, id)
-	default:
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-	}
+	panic("TODO: implement")
 }
-
 func (h *httpHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
-	var request struct {
-		Title *string `json:"title"`
-	}
-
-	if err := decodeStrictJSON(r.Body, &request); err != nil {
-		http.Error(w, "invalid JSON", http.StatusBadRequest)
-		return
-	}
-
-	if request.Title == nil {
-		http.Error(w, "title is required", http.StatusBadRequest)
-		return
-	}
-
-	task, err := h.repo.Create(*request.Title)
-	if err != nil {
-		if errors.Is(err, ErrInvalidTitle) {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-		} else {
-			http.Error(w, "internal server error", http.StatusInternalServerError)
-		}
-		return
-	}
-
-	writeJSON(w, http.StatusCreated, task)
+	panic("TODO: implement")
 }
-
 func (h *httpHandler) handleGet(w http.ResponseWriter, r *http.Request, id string) {
-	task, ok := h.repo.Get(id)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, task)
+	panic("TODO: implement")
 }
-
 func (h *httpHandler) handleList(w http.ResponseWriter, r *http.Request) {
-	done := false
-
-	values, exists := r.URL.Query()["done"]
-	if exists {
-		if len(values) != 1 {
-			http.Error(w, "invalid done parameter", http.StatusBadRequest)
-			return
-		}
-
-		switch values[0] {
-		case "true":
-			done = true
-		case "false":
-			done = false
-		default:
-			http.Error(w, "invalid done parameter", http.StatusBadRequest)
-			return
-		}
-	}
-
-	tasks := h.repo.List(done)
-	if tasks == nil {
-		tasks = make([]Task, 0)
-	}
-
-	sort.Slice(tasks, func(i, j int) bool {
-		if tasks[i].UpdatedAt.Equal(tasks[j].UpdatedAt) {
-			return tasks[i].ID < tasks[j].ID
-		}
-		return tasks[i].UpdatedAt.After(tasks[j].UpdatedAt)
-	})
-
-	writeJSON(w, http.StatusOK, tasks)
+	panic("TODO: implement")
 }
-
 func (h *httpHandler) handlePatch(w http.ResponseWriter, r *http.Request, id string) {
-	var request struct {
-		Done *bool `json:"done"`
-	}
-
-	if err := decodeStrictJSON(r.Body, &request); err != nil {
-		http.Error(w, "invalid JSON", http.StatusBadRequest)
-		return
-	}
-	if request.Done == nil {
-		http.Error(w, "done is required", http.StatusBadRequest)
-		return
-	}
-
-	task, err := h.repo.SetDone(id, *request.Done)
-	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			http.NotFound(w, r)
-		} else {
-			http.Error(w, "internal server error", http.StatusInternalServerError)
-		}
-		return
-	}
-
-	writeJSON(w, http.StatusOK, task)
+	panic("TODO: implement")
 }
-
 func decodeStrictJSON(r io.Reader, v any) error {
-	decoder := json.NewDecoder(r)
-	decoder.DisallowUnknownFields()
-
-	if err := decoder.Decode(v); err != nil {
-		return err
-	}
-
-	var next json.RawMessage
-	if err := decoder.Decode(&next); err != io.EOF {
-		if err != nil {
-			return err
-		}
-
-		return errors.New("more than one JSON object")
-	}
-
-	return nil
+	panic("TODO: implement")
 }
-
 func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+	panic("TODO: implement")
 }
