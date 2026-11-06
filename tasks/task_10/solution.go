@@ -189,21 +189,43 @@ func (h *httpHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *httpHandler) handleGet(w http.ResponseWriter, _ *http.Request, id string) {
-	t, ok := h.repo.Get(id)
+	task, ok := h.repo.Get(id)
 	if !ok {
 		http.Error(w, fmt.Sprintf("task with id='%v' was not found", id), http.StatusNotFound)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, t)
+	writeJSON(w, http.StatusOK, task)
 }
 
 func (h *httpHandler) handleList(w http.ResponseWriter, r *http.Request) {
 	panic("TODO: implement")
 }
 
+type PatchTaskRequest struct {
+	Done *bool `json:"done"`
+}
+
 func (h *httpHandler) handlePatch(w http.ResponseWriter, r *http.Request, id string) {
-	panic("TODO: implement")
+	var req PatchTaskRequest
+	err := decodeStrictJSON(r.Body, &req)
+	if err != nil || req.Done == nil {
+		http.Error(w, "invalid JSON format", http.StatusBadRequest)
+		return
+	}
+
+	task, err := h.repo.SetDone(id, *req.Done)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrNotFound):
+			http.Error(w, err.Error(), http.StatusNotFound)
+		default:
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusOK, task)
 }
 
 func decodeStrictJSON(r io.Reader, v any) error {
