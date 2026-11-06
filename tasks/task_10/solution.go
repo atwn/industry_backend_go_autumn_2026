@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -161,12 +162,40 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mux.ServeHTTP(w, r)
 }
 
-func (h *httpHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
-	panic("TODO: implement")
+type CreateTaskRequest struct {
+	Title *string `json:"title"`
 }
 
-func (h *httpHandler) handleGet(w http.ResponseWriter, r *http.Request, id string) {
-	panic("TODO: implement")
+func (h *httpHandler) handleCreate(w http.ResponseWriter, r *http.Request) {
+	var req CreateTaskRequest
+	err := decodeStrictJSON(r.Body, &req)
+	if err != nil || req.Title == nil {
+		http.Error(w, "invalid JSON format", http.StatusBadRequest)
+		return
+	}
+
+	task, err := h.repo.Create(*req.Title)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrInvalidTitle):
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		default:
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, task)
+}
+
+func (h *httpHandler) handleGet(w http.ResponseWriter, _ *http.Request, id string) {
+	t, ok := h.repo.Get(id)
+	if !ok {
+		http.Error(w, fmt.Sprintf("task with id='%v' was not found", id), http.StatusNotFound)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, t)
 }
 
 func (h *httpHandler) handleList(w http.ResponseWriter, r *http.Request) {
@@ -178,9 +207,28 @@ func (h *httpHandler) handlePatch(w http.ResponseWriter, r *http.Request, id str
 }
 
 func decodeStrictJSON(r io.Reader, v any) error {
-	panic("TODO: implement")
+	decoder := json.NewDecoder(r)
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(v)
+	if err != nil {
+		return fmt.Errorf("data doesn't match its JSON specification, see:\n\t%v", err)
+	}
+
+	var extra any
+	err = decoder.Decode(&extra)
+	if err != io.EOF {
+		return errors.New("unexpected data followed by JSON object")
+	}
+	return nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
-	panic("TODO: implement")
+	body, err := json.Marshal(v)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("couldn't convert to JSON, see:\n\t%v", err), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	w.Write(body)
 }
