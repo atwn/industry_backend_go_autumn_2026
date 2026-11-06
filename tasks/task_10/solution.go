@@ -1,11 +1,13 @@
 package main
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -57,7 +59,7 @@ func (r *inMemoryTaskRepo) Create(title string) (Task, error) {
 	defer r.mu.Unlock()
 
 	r.seq++
-	id := fmt.Sprintf("%v", r.seq) // works only if repository is a singleton
+	id := fmt.Sprintf("%v", r.seq) // работает только если экземпляр репозитория один на весь процесс
 	task := Task{
 		ID:        id,
 		Title:     title,
@@ -199,7 +201,24 @@ func (h *httpHandler) handleGet(w http.ResponseWriter, _ *http.Request, id strin
 }
 
 func (h *httpHandler) handleList(w http.ResponseWriter, r *http.Request) {
-	panic("TODO: implement")
+	query := r.URL.Query()
+	values, ok := query["done"]
+	var done bool = false
+	if ok {
+		done = values[0] == "true"
+	}
+
+	tasks := h.repo.List(done)
+	if tasks == nil {
+		tasks = []Task{}
+	}
+
+	sort.Slice(tasks, func(i, j int) bool {
+		return (tasks[i].UpdatedAt.Equal(tasks[j].UpdatedAt) && cmp.Less(tasks[i].ID, tasks[j].ID)) ||
+			tasks[i].UpdatedAt.After(tasks[j].UpdatedAt)
+	})
+
+	writeJSON(w, http.StatusOK, tasks)
 }
 
 type PatchTaskRequest struct {
